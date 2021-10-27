@@ -4,6 +4,10 @@ from math import floor
 # API Key: p54r5jlFe00RyRIs3-qHBfVsWPPcJN2z
 # Secret Key: Wb_3e0kN7AIi1LlzCTCv8eSK4LZNjtBA
 
+# Sub
+# API Key: MOa7_xGmOzehNkVrOFZDhd2gw4sD3X2M
+# Secret Key: R8eM0vmcpx5OtQl08gdhEoSFzAmUlDYh
+
 def setInterval(func,time):
     e = threading.Event()
     while not e.wait(time):

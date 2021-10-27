@@ -26,7 +26,7 @@ def loop():
     freeDai = floor(amountDai*100)/100
     print("free DAi: ", freeDai)
 
-    if amountDai > 0.03:
+    if amountDai > 0.02:
         orderData = {'symbol':'USDTDAI', 'side': 'buy', 'quantity': freeDai * priceBuy * 0.998, 'price': priceBuy }
         r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
         print('Buy USDT: ', r.json())
@@ -38,8 +38,8 @@ def loop():
     freeUSDT = floor(amountUsdt*100)/100
     print("free USDT: ", freeUSDT)
 
-    if amountUsdt > 0.03:
-        orderData = {'symbol':'USDTDAI', 'side': 'sell', 'quantity': freeUSDT  * 0.998, 'price': priceSell }
+    if amountUsdt > 0.02:
+        orderData = {'symbol':'USDTDAI', 'side': 'sell', 'quantity': freeUSDT  * 0.998, 'price': priceSell } #0.998 comission 0.002
         print('sell data:', orderData)
         r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
         print('Sell USDT: ', r.json())
