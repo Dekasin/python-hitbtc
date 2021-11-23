@@ -2,28 +2,32 @@ import requests
 import threading
 from math import floor
 import time
+from KEYS_DAI import *
+
+
 
 # seconds passed since epoch
-seconds = time.time()
-local_time = time.ctime(seconds)
+local_time = time.ctime()
 print("SCRIPT START AT:", local_time)
 
-apiKey = 'MOa7_xGmOzehNkVrOFZDhd2gw4sD3X2M'
-secretKey = 'R8eM0vmcpx5OtQl08gdhEoSFzAmUlDYh'
-loopInterval = 5
-priceBuy = 0.9992
-priceSell = 1.0056
 
-usdtPriceBuyMax = 0.9999
-usdtPriceSellMin = 1.0034
-proPriceBuyMax = 0.000026
-proPriceSellMin = 0.000034
+LOOP_INTERVAL = 5
+
+USDT_PRICE_BUY_MAX = 0.9999
+USDT_PRICE_SELL_MIN = 1.0045
+
+PRO_PRICE_BUY_MAX = 0.000030
+proPriceBuy01 = 0.0000326
+proPriceSellMin = 0.000047
+proPriceSell01 = 0.000042
+
+FACTOR_MIN = 0.15
 
 
 session = requests.session()
-session.auth = (apiKey, secretKey)
+session.auth = (API_KEY, SECRET_KEY)
 
-# DELETE /api/3/spot/order
+        # DELETE /api/3/spot/order
 
 clearOrder = session.delete('https://api.hitbtc.com/api/3/spot/order').json()
 print('DELETE orders \n: ', clearOrder)
@@ -31,9 +35,14 @@ print('_ _ _ _ _ _ _ _ _ _ _ _ _ ')
 print('_ _ _ _ _ _ _ _ _ _ _ _ _ ')
 
 def setInterval(func,time):
-    e = threading.Event()
-    while not e.wait(time):
-        func()
+    try:
+        e = threading.Event()
+        while not e.wait(time):
+            func()
+    except:
+        print("disconnect")
+        session = requests.session()
+        session.auth = (API_KEY, SECRET_KEY)
 
 def getBalance():
     dai = session.get('https://api.hitbtc.com/api/3/spot/balance/DAI').json()
@@ -47,8 +56,8 @@ def getBalance():
     
 
 def showTime():
-    seconds = time.time()
-    local_time = time.ctime(seconds)
+    # seconds = time.time()
+    local_time = time.ctime()
     print("Local time:", local_time)
     
 
@@ -76,7 +85,7 @@ def loop():
         priceBuyI = float(bid[i][0])
         buyAmountI = float(bid[i][1])
 
-        if priceBuyI > usdtPriceBuyMax:
+        if priceBuyI > USDT_PRICE_BUY_MAX:
             True
 
         elif buyAmountI < freeDai:
@@ -114,7 +123,7 @@ def loop():
         priceSellI = float(ask[i][0])
         sellAmountI = float(ask[i][1])
 
-        if priceSellI < usdtPriceSellMin:
+        if priceSellI < USDT_PRICE_SELL_MIN:
             True
 
         elif sellAmountI < freeUSDT:
@@ -164,26 +173,36 @@ def loop():
     bid = btcPrice['bid']
    
     ask = btcPrice['ask']
-    
+
+    # print('bid  =  ', bid)
+    # print('ask = ' , ask)
     # print(freeBtc)
     
     i = 0
+    k = 0
     while freeBtc > 0.000005:
         
-        # print('bid  =  ', bid)
-        # print('ask = ' , ask)
+        
 
         priceBuyI = float(bid[i][0])
         buyAmountI = float(bid[i][1])
-        print('ByyAmount:', buyAmountI, freeBtc,'Price =', priceBuyI, 'i=', i )
+        print('ByyAmount:', buyAmountI,  "free BTC:", freeBtc,'\n Price =', priceBuyI, 'i=', i )
 
         # print('btcPrice:', priceBuyI, buyAmountI,  )
         if priceBuyI > float(ask[0][0]) * 0.98:
             True
-        elif (priceBuyI > proPriceBuyMax) and freeBtc * 0.1 > 0.000005 and i <= 2:
-            orderData = {'symbol':'PROBTC', 'side': 'buy', 'quantity': (freeBtc * 0.1) / (priceBuyI + 0.00000001), 'price': priceBuyI +0.00000001 }
+
+        elif priceBuyI > proPriceBuy01:
+            True
+
+        elif (priceBuyI > PRO_PRICE_BUY_MAX) and freeBtc * FACTOR_MIN > 0.000005 and k <= 2:
+            
+            if buyAmountI > (freeBtc * FACTOR_MIN) / priceBuyI:
+                buyAmountI = (freeBtc * FACTOR_MIN) / priceBuyI + 0.00000001
+            orderData = {'symbol':'PROBTC', 'side': 'buy', 'quantity': buyAmountI, 'price': priceBuyI +0.00000001 }
             r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
-            freeBtc = freeBtc - (freeBtc * 0.1)* (priceBuyI + 0.00000001)
+            freeBtc = freeBtc - buyAmountI * (priceBuyI + 0.00000001)
+            k +=1
             
             print('Buy PRO  __MIN__0.1__', r.json())
             print('FREE BTC_______', freeBtc)
@@ -191,7 +210,7 @@ def loop():
             showTime()
             getBalance()
 
-        elif (priceBuyI > proPriceBuyMax)  and i > 2:
+        elif (priceBuyI > PRO_PRICE_BUY_MAX)  and i > 2:
             False
 
 
@@ -199,7 +218,8 @@ def loop():
             orderData = {'symbol':'PROBTC', 'side': 'buy', 'quantity': buyAmountI, 'price': priceBuyI +0.00000001 }
             r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
             freeBtc = freeBtc - buyAmountI * (priceBuyI + 0.00000001)
-            
+            k +=1
+
             print('Buy PRO  min', r.json())
             print('_______')
             showTime()
@@ -208,7 +228,7 @@ def loop():
         else:
             orderData = {'symbol':'PROBTC', 'side': 'buy', 'quantity': freeBtc / (priceBuyI + 0.00000001), 'price': priceBuyI + 0.00000001 }
             r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
-            
+            k +=1
             print('Buy PRO allBTC', r.json())
             freeBtc = 0
 
@@ -231,21 +251,28 @@ def loop():
     # print('PRO statement:', proBalance)
     proAmount = float(proBalance['available'])
     freePro = floor(proAmount * 998)/1000
+    
     i = 0
-
-    while freePro > 0.1:
+    orderCounter = 0
+    while freePro >= 0.1:
                
         priceSellI = float(ask[i][0])
         sellAmountI = float(ask[i][1])
-
+        print(priceSellI, sellAmountI)
+        
         if priceSellI < float(bid[0][0]) * 1.02:
-            True
-        elif (priceSellI < proPriceSellMin) and freePro * 0.1 > 0.1 and i <= 2:
+            False
+        elif priceSellI < proPriceSell01:
+            False
+        elif (priceSellI < proPriceSellMin) and freePro * FACTOR_MIN >= 0.1 and orderCounter <= 2:
             # True
-            orderData = {'symbol':'PROBTC', 'side': 'sell', 'quantity': freePro * 0.1, 'price': priceSellI -0.000000001 }
+            if sellAmountI > freePro * FACTOR_MIN:
+                sellAmountI = freePro * FACTOR_MIN
+
+            orderData = {'symbol':'PROBTC', 'side': 'sell', 'quantity': sellAmountI, 'price': priceSellI -0.000000001 }
             r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
-            
-            freePro -= (freePro * 0.1)
+            orderCounter += 1
+            freePro -= (sellAmountI)
             print('Sell PRO __MIN___0.1__', r.json())
             print('Order data',orderData)
             print("freePRO", freePro)
@@ -253,13 +280,13 @@ def loop():
             showTime()
             getBalance()
 
-        elif (priceSellI < proPriceSellMin) and i > 2:
+        elif (priceSellI < proPriceSellMin) and orderCounter > 2:
             True    
 
         elif sellAmountI < freePro:
             orderData = {'symbol':'PROBTC', 'side': 'sell', 'quantity': sellAmountI, 'price': priceSellI - 0.000000001 }
             r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
-           
+            orderCounter += 1
             freePro -= sellAmountI
             print('Sell PRO', r.json())
             print('Order data',orderData)
@@ -269,9 +296,9 @@ def loop():
             getBalance()
     
         else:
-            orderData = {'symbol':'PROBTC', 'side': 'sell', 'quantity': freePro, 'price': priceSellI -0.000000001 }
+            orderData = {'symbol':'PROBTC', 'side': 'sell', 'quantity': floor(freePro * 10)/10, 'price': priceSellI -0.000000001 }
             r = session.post('https://api.hitbtc.com/api/3/spot/order/', data = orderData)
-            
+            orderCounter += 1
             freePro = 0
             print('Sell PRO all', r.json())
             print('Order data',orderData)
@@ -288,4 +315,12 @@ def loop():
     print('______')   
     
 # using
-setInterval(loop,loopInterval)
+setInterval(loop,LOOP_INTERVAL)
+
+
+    # DELETE /api/3/spot/order
+
+# clearOrder = session.delete('https://api.hitbtc.com/api/3/spot/order').json()
+# print('DELETE orders \n: ', clearOrder)
+# print('_ _ _ _ _ _ _ _ _ _ _ _ _ ')
+# print('_ _ _ _ _ _ _ _ _ _ _ _ _ ')
